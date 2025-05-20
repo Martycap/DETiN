@@ -26,6 +26,7 @@ var/
 # Folders
 data/raw/original_images
 data/raw/val_images
+venv/
 
 # Installer logs
 pip-log.txt
