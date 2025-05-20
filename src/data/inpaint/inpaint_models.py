@@ -1,12 +1,6 @@
-from diffusers import StableDiffusionInpaintPipeline
-import torch
+from diffusers import DiffusionPipeline
 
-# Carica il modello
-
-pipe = StableDiffusionInpaintPipeline.from_pretrained(
-    "runwayml/stable-diffusion-inpainting",
-    torch_dtype=torch.float16
-).to("cuda")
+pipe = DiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-inpainting")
 
 from pycocotools.coco import COCO
 import cv2, numpy as np, os, random
@@ -14,16 +8,20 @@ from PIL import Image
 
 coco = COCO("data/raw/annotations/instances_val2017.json")
 img_ids = coco.getImgIds()
-img_id = random.choice(img_ids)
+img_id = img_ids[0]
 img_info = coco.loadImgs(img_id)[0]
 
-img_path = os.path.join("data/raw/original_images", img_info["file_name"])
+img_path = os.path.join("data/raw/val_images", img_info["file_name"])
 image = cv2.imread(img_path)
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-image_resized = cv2.resize(image_rgb, (512, 512))
+import matplotlib.pyplot as plt
+plt.imshow(image_rgb)
+plt.axis('off')  # opzionale, per togliere gli assi
+plt.show()
+image_resized = cv2.resize(image_rgb, (128, 128))
 
 from mask_generator import Mask
-mask = Mask.segmentation_mask(coco, img_id, size=(512, 512))
+mask = Mask.segmentation_mask(coco, img_id, size=(128, 128))
 image_pil = Image.fromarray(image_resized)
 mask_pil = Image.fromarray(mask).convert("L")
 

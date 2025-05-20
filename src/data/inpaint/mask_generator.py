@@ -1,7 +1,7 @@
 import cv2, random, numpy as np
 
 class Mask:
-    def segmentation_mask(coco, id, size = (255, 255)):
+    def segmentation_mask(coco, id, size = (128, 128)):
         """
         Crea una maschera attraverso la segmentazione
         """
@@ -17,7 +17,7 @@ class Mask:
             rle_resized = cv2.resize(rle.astype(np.uint8), size, interpolation=cv2.INTER_NEAREST)
             mask = cv2.bitwise_or(mask, (rle_resized * 255).astype(np.uint8))
         
-        check_ratio()
+        check_ratio(mask)
         return mask
 
 
@@ -41,7 +41,7 @@ class Mask:
             box_mask_resized = cv2.resize(box_mask, size, interpolation=cv2.INTER_NEAREST)
             mask = cv2.bitwise_or(mask, box_mask_resized)
             
-        check_ratio()
+        check_ratio(mask)
         return mask
 
 
@@ -57,7 +57,7 @@ class Mask:
             y2 = random.randint(y1, size[0])
             cv2.rectangle(mask, (x1, y1), (x2, y2), 255, -1)
         
-        check_ratio()
+        check_ratio(mask)
         return mask
 
 # -------------------------------------------------------------------------
