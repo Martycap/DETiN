@@ -14,8 +14,6 @@ pycocotools==2.0.8
 scipy==1.15.3
 tensorboard==2.16.2
 tensorboard-data-server==0.7.2
-tensorflow-io-gcs-filesystem==0.31.0
-tensorflow-metadata==1.17.0
 torch==2.2.0
 torch-max-mem==0.1.4
 torch-ppr==0.0.8

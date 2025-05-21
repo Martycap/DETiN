@@ -24,9 +24,9 @@ var/
 *.egg
 
 # Folders
-data/raw/original_images
 data/raw/val_images
 venv/
+models/inpaint/**
 
 # Installer logs
 pip-log.txt
