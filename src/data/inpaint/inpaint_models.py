@@ -3,7 +3,7 @@ from diffusers import DiffusionPipeline
 pipe = DiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-inpainting")
 
 from pycocotools.coco import COCO
-import cv2, numpy as np, os, random
+import cv2, os
 from PIL import Image
 
 coco = COCO("data/raw/annotations/instances_val2017.json")
