@@ -1,7 +1,7 @@
 import cv2, random, numpy as np
 
 class Mask:
-    def segmentation_mask(coco, id, size = (128, 128)):
+    def segmentation_mask(coco, id, size = (256, 256)):
         """
         Crea una maschera attraverso la segmentazione
         """
@@ -21,7 +21,7 @@ class Mask:
         return mask
 
 
-    def bbox_mask(coco, image_id, size=(255, 255), num_boxes=3):
+    def bbox_mask(coco, image_id, size=(256, 256), num_boxes=3):
         """
         Crea una maschera binaria contenente i rettangoli delle bounding box per un'immagine
         """
@@ -69,7 +69,7 @@ def check_ratio(mask):
     """
     Se la maschera è troppo grande (=errore) allora lancia l'eccezione.
     """
-    white_pixels = np.sum(mask == 255)
+    white_pixels = np.sum(mask == 256)
     total_pixels = mask.size
     white_ratio = white_pixels / total_pixels
     
@@ -90,7 +90,7 @@ def check_ratio(mask):
 # img_path = os.path.join("data/raw/val_images", img_info['file_name'])
 # image = cv2.imread(img_path)
 # image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-# image_resized = cv2.resize(image_rgb, (255, 255), interpolation=cv2.INTER_AREA)
+# image_resized = cv2.resize(image_rgb, (256, 256), interpolation=cv2.INTER_AREA)
 
 # mask = segmentation_mask(dataset, img_info["id"])
 
