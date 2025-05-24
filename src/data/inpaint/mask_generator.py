@@ -10,7 +10,8 @@ class Mask:
         annotations = coco.loadAnns(ann_ids)
         mask = np.zeros(size, dtype=np.uint8)
 
-        selected = annotations[:3]
+        selections = random.randint(1, 3)
+        selected = annotations[:selections]
         print(selected)
         for annotation in selected:
             rle = coco.annToMask(annotation)
@@ -18,7 +19,7 @@ class Mask:
             mask = cv2.bitwise_or(mask, (rle_resized * 255).astype(np.uint8))
         
         check_ratio(mask)
-        return mask
+        return mask, selections
 
 
     def bbox_mask(coco, image_id, size=(256, 256)):
@@ -32,7 +33,8 @@ class Mask:
         img_info = coco.loadImgs(image_id)[0]
         height, width = img_info['height'], img_info['width']
 
-        selected = anns[:3]
+        selections = random.randint(1, 3)
+        selected = anns[:selections]
         for ann in selected:
             x, y, w, h = ann['bbox']
             box_mask = np.zeros((height, width), dtype=np.uint8)
@@ -42,7 +44,7 @@ class Mask:
             mask = cv2.bitwise_or(mask, box_mask_resized)
             
         check_ratio(mask)
-        return mask
+        return mask, selections
 
 
     def random_box_mask(size=(256, 256)):
@@ -50,7 +52,8 @@ class Mask:
         Genera una maschera contentente da 3 a 8 rettangoli casuali
         """
         mask = np.zeros(size, dtype=np.uint8)
-        for _ in range(random.randint(1, 3)):
+        selections = random.randint(1, 3)
+        for _ in range(selections):
             x1 = random.randint(0, size[1] - 1)
             y1 = random.randint(0, size[0] - 1)
             x2 = random.randint(x1, size[1])
@@ -58,7 +61,7 @@ class Mask:
             cv2.rectangle(mask, (x1, y1), (x2, y2), 255, -1)
         
         check_ratio(mask)
-        return mask
+        return mask, selections
 
 # -------------------------------------------------------------------------
 RATIO = 0.9
