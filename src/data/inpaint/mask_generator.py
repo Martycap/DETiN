@@ -19,7 +19,7 @@ class Mask:
             mask = cv2.bitwise_or(mask, (rle_resized * 255).astype(np.uint8))
         
         check_ratio(mask)
-        return mask, selections
+        return mask
 
 
     def bbox_mask(coco, image_id, size=(256, 256)):
@@ -44,7 +44,7 @@ class Mask:
             mask = cv2.bitwise_or(mask, box_mask_resized)
             
         check_ratio(mask)
-        return mask, selections
+        return mask
 
 
     def random_box_mask(size=(256, 256)):
@@ -61,7 +61,7 @@ class Mask:
             cv2.rectangle(mask, (x1, y1), (x2, y2), 255, -1)
         
         check_ratio(mask)
-        return mask, selections
+        return mask
 
 # -------------------------------------------------------------------------
 RATIO = 0.9
