@@ -3,8 +3,11 @@ sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..")))
 from data.inpaint.inpaint_models import Inpaint
 from data.inpaint.mask_generator import Mask
+from data.inpaint.prompt_generator import load_prompts
+
 from pycocotools.coco import COCO
 from PIL import Image
+
 
 def center_crop(image, size=256):
     """
@@ -41,47 +44,68 @@ def image_loader(dataset: COCO, index, folder="./data/raw/val_images"):
             print(f"Error with image: {file_name} -> {e}")
     return
 
-if __name__ == "__main__":
+
+def save(image, directory, file_name):
+    os.makedirs(directory, exist_ok=True)
+    output_path = os.path.join(directory, file_name)
+    image.save(output_path)
+    return
+
+
+def inpaint_pipeline():
     dataset = COCO("data/raw/annotations/instances_val2017.json")
     index = dataset.getImgIds()
+    prompts = load_prompts()
+    
+    inpaint = Inpaint("./models/inpaint")
+    mask_methods = {
+        "segmentation": Mask.segmentation_mask,
+        "bbox": Mask.bbox_mask,
+        "random_box": lambda dataset, id: Mask.random_box_mask
+    }
+    inpaint_models = {
+        "Stable_Diffusion": inpaint.Stable_Diffusion,
+        "Kandinsky": inpaint.Kandinsky
+    }
+    
+    combinations = []
+    for mask_name in mask_methods:
+        for model_name in inpaint_models:
+            if model_name == "Kandinsky":
+                combinations.append((mask_name, model_name, "random"))
+            else:
+                combinations.append((mask_name, model_name, "random"))
+                combinations.append((mask_name, model_name, "realistic"))
 
-    random.shuffle(index)
+    batch = 1000
+    progress = {f"{m}_{n}_{p}": 0 for (m, n, p) in combinations}
     for image, id, file_name in image_loader(dataset, index):
-        mask = Mask.segmentation_mask(dataset, id)
-        mask_pil = Image.fromarray(mask).convert("L")
         
-        image.show()
-        mask_pil.show()
+        for mask_type, model_name, prompt_type in combinations:
+            key = f"{mask_type}_{model_name}_{prompt_type}"
+            
+            if progress[key] >= batch:
+                continue
 
-        break
-    
-    # images[256].show()
-    
-    # mask = Mask.random_box_mask()
-    
-    # models = Inpaint("./models/inpaint")
-    
-    # from PIL import Image
-    # image = Image.fromarray(images[342])
-    # mask = Image.fromarray(mask).convert("L")
-    # plt.imshow(mask, cmap = "gray")
-    # plt.axis('off')
-    # plt.show()
-    
-    
-    # output = models.inference_kandinsky(prompt, images, mask)
-    
-    # output.show()
-    
-    # img_id = random.choice(index)
-    # img_info = dataset.loadImgs(img_id)[0]
-    # print(img_info)
+            try:
+                mask = mask_methods[mask_type](dataset, id)
+                mask = Image.fromarray(mask).convert("L")
 
-    # annotations = dataset.loadAnns(dataset.getAnnIds(imgIds=img_id))
-    # for ann in annotations:
-    #     print(ann)
-    
-    # img_path = os.path.join("data/raw/val_images", img_info["file_name"])
-    # image = cv2.imread(img_path)
-    # image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                prompt = (random.choice(prompts) if prompt_type == "random" 
+                            else "Fill the missing region realistically")
+                
+                inpaint = inpaint_models[model_name]
+                inpainted, gt_mask = inpaint(prompt, image, mask)
+            
+                save(inpainted, f"./data/processed/train/{key}", file_name)
+                save(gt_mask, f"./data/processed/masks/{key}", file_name)
+                
+                progress[key] += 1
+                if all(images >= batch for images in progress.values()):
+                    exit()
 
+            except Exception as e:
+                print(e)
+
+if __name__ == "__main__":
+    inpaint_pipeline()
