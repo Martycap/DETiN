@@ -100,6 +100,7 @@ def inpaint_pipeline():
                 save(inpainted, f"./data/processed/train/{key}", file_name)
                 save(gt_mask, f"./data/processed/masks/{key}", file_name)
                 
+                print(f"LOG: file {file_name} with {key} has this PROMPT: {prompt}")
                 progress[key] += 1
                 if all(images >= batch for images in progress.values()):
                     exit()
