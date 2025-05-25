@@ -75,8 +75,7 @@ def check_ratio(mask):
     white_pixels = np.sum(mask == 256)
     total_pixels = mask.size
     white_ratio = white_pixels / total_pixels
-    
-    # print(f"White area: {white_ratio:.2%}")
+
     if white_ratio > RATIO:
         raise WhiteMask()
     return
