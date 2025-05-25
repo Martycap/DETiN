@@ -19,13 +19,13 @@ class Inpaint():
             "kandinsky-community/kandinsky-2-2-decoder-inpaint",
             torch_dtype=torch.float32,
             cache_dir=path
-        ).to(device)
+            ).to(device)
         
         self.prior = DiffusionPipeline.from_pretrained(
             "kandinsky-community/kandinsky-2-2-prior",
             torch_dtype=torch.float32,
             cache_dir=path
-        ).to(device)
+            ).to(device)
         return
 
 
@@ -37,7 +37,7 @@ class Inpaint():
             ).images[0]
         
         gt = Inpaint.compute_inpainted_mask(image, inpainted)
-        return inpainted
+        return inpainted, gt
     
     
     def Kandinsky(self, prompt, image, mask):
@@ -69,3 +69,4 @@ class Inpaint():
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         
         return Image.fromarray(mask, mode='L')
+    
