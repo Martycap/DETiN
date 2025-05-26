@@ -1,17 +1,14 @@
 from diffusers import DiffusionPipeline
-import torch, numpy as np, cv2
-from PIL import Image
+from data.inpaint.mask_generator import Mask
+import torch
 
 class Inpaint():
-    
     def __init__(self, path):
-        device = torch.device(
-            "cuda" if not torch.cuda.is_available() else "cpu"
-            )
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         
         self.diffusion_pipe = DiffusionPipeline.from_pretrained(
             "stabilityai/stable-diffusion-2-inpainting",
-            use_safetensors = True,
+            torch_dtype=torch.float32,
             cache_dir = path
             ).to(device)
         
@@ -30,17 +27,25 @@ class Inpaint():
 
 
     def Stable_Diffusion(self, prompt, image, mask):
+        """
+        Stable Diffusion model's inference.
+        """
+        
         inpainted = self.diffusion_pipe(
             prompt = prompt,
             image = image,
             mask_image = mask
             ).images[0]
         
-        gt = Inpaint.compute_inpainted_mask(image, inpainted)
+        gt = Mask.compute_inpainted_mask(image, inpainted)
         return inpainted, gt
     
     
     def Kandinsky(self, prompt, image, mask):
+        """
+        Kandinsky model's inference.
+        """
+        
         prior = self.prior(prompt=prompt, guidance_scale=1.0)
         image_embeds = prior.image_embeds
         negative_image_embeds = prior.negative_image_embeds
@@ -55,18 +60,5 @@ class Inpaint():
             num_inference_steps = 50
         ).images[0]
         
-        gt = Inpaint.compute_inpainted_mask(image, inpainted)
+        gt = Mask.compute_inpainted_mask(image, inpainted)
         return inpainted, gt
-    
-    
-    def compute_inpainted_mask(original, inpainted):
-        original = np.array(original).astype(np.int16)
-        inpainted = np.array(inpainted).astype(np.uint16)
-        differences = np.abs(inpainted - original).sum(axis = 2)
-        
-        kernel = np.ones((3,3), np.uint8)
-        mask = (differences > 0).astype(np.uint8) * 255
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        
-        return Image.fromarray(mask, mode='L')
-    

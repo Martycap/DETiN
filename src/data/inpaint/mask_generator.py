@@ -1,10 +1,12 @@
 import cv2, random, numpy as np
+from PIL import Image
 
 class Mask:
     def segmentation_mask(coco, id, size = (256, 256)):
         """
-        Crea una maschera attraverso la segmentazione
+        Generates a mask using segmentation info from annotations.
         """
+        
         ann_ids = coco.getAnnIds(imgIds = id)
         print(ann_ids)
         annotations = coco.loadAnns(ann_ids)
@@ -24,8 +26,9 @@ class Mask:
 
     def bbox_mask(coco, image_id, size=(256, 256)):
         """
-        Crea una maschera binaria contenente i rettangoli delle bounding box per un'immagine
+        Generates a binary mask with bounding box rectangles for a given image.
         """
+        
         ann_ids = coco.getAnnIds(imgIds=image_id)
         anns = coco.loadAnns(ann_ids)
         mask = np.zeros(size, dtype=np.uint8)
@@ -49,8 +52,9 @@ class Mask:
 
     def random_box_mask(size=(256, 256)):
         """
-        Genera una maschera contentente da 3 a 8 rettangoli casuali
+        Creates a mask with a random number of rectangles, ranging from 1 to 3.
         """
+        
         mask = np.zeros(size, dtype=np.uint8)
         selections = random.randint(1, 3)
         for _ in range(selections):
@@ -63,6 +67,25 @@ class Mask:
         check_ratio(mask)
         return mask
 
+
+    def compute_inpainted_mask(original, inpainted):
+        """
+        Generates the inpainted mask after inpainted is applied.
+        """
+        
+        if inpainted.size != original.size:
+            inpainted = inpainted.resize(original.size, Image.LANCZOS)
+        
+        original = np.array(original).astype(np.int16)
+        inpainted = np.array(inpainted).astype(np.int16)
+        differences = np.abs(inpainted - original).sum(axis = 2)
+        
+        kernel = np.ones((3,3), np.uint8)
+        mask = (differences > 40).astype(np.uint8) * 255
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        
+        return Image.fromarray(mask, mode='L')
+    
 # -------------------------------------------------------------------------
 RATIO = 0.9
 class WhiteMask(Exception):
@@ -70,8 +93,9 @@ class WhiteMask(Exception):
 
 def check_ratio(mask):
     """
-    Se la maschera è troppo grande (=errore) allora lancia l'eccezione.
+    Throws an exception if the mask exceeds the allowed size.
     """
+    
     white_pixels = np.sum(mask == 256)
     total_pixels = mask.size
     white_ratio = white_pixels / total_pixels
