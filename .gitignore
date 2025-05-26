@@ -26,7 +26,10 @@ var/
 # Folders
 data/raw/val_images
 venv/
-models/inpaint/**
+models/inpaint/.locks
+models/inpaint/models--kandinsky-community--kandinsky-2-2-decoder-inpaint
+models/inpaint/models--kandinsky-community--kandinsky-2-2-prior
+models/inpaint/models--stabilityai--stable-diffusion-2-inpainting
 
 # Installer logs
 pip-log.txt
