@@ -1,16 +1,32 @@
 import os
+import json
 import torch
+import tqdm
+import cv2
+import random
+import numpy as np
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from utils.dataset_mapping import create_triplets_from_tampered, show_triplet
+from src.utils.create_triplets import create_triplets_from_tampered
 from src.data.casia_dataset import CASIATransformerDataset, plot_image_noise_freq
 import torchvision.models.segmentation as segmentation
-import tqdm
 import torchvision.transforms.functional as TF
-import numpy as np
-import cv2
 
 
+CHECKPOINT_DIR = "models/checkpoints"
+INFERENCE_DIR = "predicted_masks"
+
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # se usi più GPU
+
+    # Impostazioni per determinismo in PyTorch
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
 def prepare_model(input_channels=9, num_classes=1, pretrained=False):
     model = segmentation.deeplabv3_resnet50(pretrained=pretrained, num_classes=num_classes)
     old_conv = model.backbone.conv1
@@ -68,39 +84,100 @@ def validate(model, dataloader, criterion, device):
     avg_loss = running_loss / len(dataloader)
     return avg_loss
 
+def compute_iou(pred_mask, true_mask):
+    pred = pred_mask.byte()
+    target = true_mask.byte()
+    intersection = (pred & target).float().sum((1, 2))
+    union = (pred | target).float().sum((1, 2))
+    iou = (intersection + 1e-6) / (union + 1e-6)
+    return iou.mean().item()
 
-def train(model, train_loader, val_loader, criterion, optimizer, device, num_epochs=10, checkpoint_dir="checkpoints"):
+def compute_f1(pred_mask, true_mask):
+    pred = pred_mask.byte()
+    target = true_mask.byte()
+    tp = (pred & target).float().sum()
+    fp = (pred & ~target).float().sum()
+    fn = (~pred & target).float().sum()
+    precision = tp / (tp + fp + 1e-6)
+    recall = tp / (tp + fn + 1e-6)
+    f1 = 2 * (precision * recall) / (precision + recall + 1e-6)
+    return f1.item()
+
+def train(model, train_loader, val_loader, criterion, optimizer, device, num_epochs=10, checkpoint_dir=CHECKPOINT_DIR, patience=3):
     os.makedirs(checkpoint_dir, exist_ok=True)
     best_val_loss = float('inf')
+    epochs_no_improve = 0
+    history = []
 
     for epoch in range(num_epochs):
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss = validate(model, val_loader, criterion, device)
         print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+        
+        history.append({
+            "epoch": epoch + 1,
+            "train_loss": train_loss,
+            "val_loss": val_loss
+        })
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            epochs_no_improve = 0
             checkpoint_path = os.path.join(checkpoint_dir, "best_model.pth")
             torch.save(model.state_dict(), checkpoint_path)
             print(f"Best model saved to {checkpoint_path}")
+        else:
+            epochs_no_improve += 1
+            print(f"No improvement in validation loss for {epochs_no_improve} epoch(s).")
+
+        if epochs_no_improve >= patience:
+            print("Early stopping triggered.")
+            break
+    # Salvataggio finale del modello e delle metriche
+    torch.save(model.state_dict(), os.path.join(checkpoint_dir, "final_model.pth"))
+    with open(os.path.join(checkpoint_dir, "training_log.json"), "w") as f:
+        json.dump(history, f, indent=4)
 
 
-def inference(model, dataloader, device, save_dir="predicted_masks"):
+
+def inference(model, dataloader, device, save_dir=INFERENCE_DIR):
     os.makedirs(save_dir, exist_ok=True)
     model.eval()
+    iou_scores = []
+    f1_scores = []
+
     with torch.no_grad():
         for i, (x, mask) in enumerate(tqdm.tqdm(dataloader, desc="Inference")):
-            x = x.to(device)
+            x, mask = x.to(device), mask.to(device)
             outputs = model(x)['out']
             preds = torch.sigmoid(outputs)
-            preds = (preds > 0.5).float()  # Thresholding
+            preds = (preds > 0.5).float()
 
             for b in range(preds.shape[0]):
-                pred_mask = preds[b, 0].cpu().numpy() * 255
-                pred_mask = pred_mask.astype(np.uint8)
-                # Salva la maschera con nome progressivo o altro sistema
+                pred_mask = preds[b, 0]
+                true_mask = mask[b, 0]
+                
+                iou_scores.append(compute_iou(pred_mask, true_mask))
+                f1_scores.append(compute_f1(pred_mask, true_mask))
+
                 filename = f"pred_mask_{i*preds.shape[0]+b:05d}.png"
-                cv2.imwrite(os.path.join(save_dir, filename), pred_mask)
+                mask_img = (pred_mask.cpu().numpy() * 255).astype(np.uint8)
+                cv2.imwrite(os.path.join(save_dir, filename), mask_img)
+
+    # Calcolo delle metriche aggregate
+    avg_iou = np.mean(iou_scores)
+    avg_f1 = np.mean(f1_scores)
+    print(f"Test IoU: {avg_iou:.4f}, F1-score: {avg_f1:.4f}")
+
+    # Salvataggio dei risultati
+    results = {
+        "iou": avg_iou,
+        "f1_score": avg_f1
+    }
+    with open(os.path.join(save_dir, "test_metrics.json"), "w") as f:
+        json.dump(results, f, indent=4)
+    
+    return results
 
 
 def visualize_sample(dataset, index=0):
@@ -111,25 +188,40 @@ def visualize_sample(dataset, index=0):
     plot_image_noise_freq(image, noise, freq)
 
 
+def predict_single_image(model, image_tensor, device, threshold=0.5):
+    """
+    Esegue l'inferenza su una singola immagine pre-processata (9 canali).
+    Ritorna la maschera predetta (come tensore float32 binario).
+    """
+    model.eval()
+    with torch.no_grad():
+        image_tensor = image_tensor.unsqueeze(0).to(device)  # [1, 9, H, W]
+        output = model(image_tensor)['out']
+        pred = torch.sigmoid(output)
+        pred = (pred > threshold).float()
+    return pred.squeeze(0)  # [1, H, W] → [H, W]
+
 def main():
+    #set_seed(42)  # Fisso il seed a 42 per la riproducibilità
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     authentic_dir = 'data/raw/CASIA2/Authentic'
     tampered_dir = 'data/raw/CASIA2/Tampered'
     mask_dir = 'data/raw/CASIA2/Masks'
 
+    
     triplets = create_triplets_from_tampered(tampered_dir, mask_dir, authentic_dir)
 
     if not triplets:
         print("Nessun triplet trovato.")
         return
 
-    # Visualizza un esempio
+    print(f"Triplets trovati: {len(triplets)}")  
+
     dataset = CASIATransformerDataset(triplets)
     visualize_sample(dataset, index=0)
 
-    # Suddividi e ottieni dataloader
-    train_loader, val_loader, test_loader = get_dataloaders(triplets)
+    train_loader, val_loader, test_loader = get_dataloaders(triplets, batch_size=8)
 
     model = prepare_model(input_channels=9, num_classes=1, pretrained=False)
     model.to(device)
@@ -137,11 +229,12 @@ def main():
     criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-    # Addestramento
     train(model, train_loader, val_loader, criterion, optimizer, device, num_epochs=10)
+    
+    metrics = inference(model, test_loader, device, save_dir=INFERENCE_DIR)
+    print(f"Risultati finali: IoU={metrics['iou']:.4f}, F1={metrics['f1_score']:.4f}")
 
-    # Inferenza su test set e salvataggio maschere
-    inference(model, test_loader, device, save_dir="predicted_masks")
+
 
 
 if __name__ == "__main__":
