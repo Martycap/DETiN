@@ -1,10 +1,11 @@
-import random, sys, os
+import random, sys, os, csv
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..")))
 from data.inpaint.inpaint_models import Inpaint
 from data.inpaint.mask_generator import Mask
 from data.inpaint.prompt_generator import load_prompts
 
+from datetime import datetime
 from pycocotools.coco import COCO
 from PIL import Image
 
@@ -12,8 +13,9 @@ from PIL import Image
 def center_crop(image, size=256):
     """
     Crops the largest possible centered square from the image,
-    then resizes it to (size, size) for CNN input.
+    then resizes it to (size, size) for inpaint detection model input.
     """
+    
     width, height = image.size
     min_dim = min(width, height)
 
@@ -46,26 +48,51 @@ def image_loader(dataset: COCO, index, folder="./data/raw/val_images"):
 
 
 def save(image, directory, file_name):
+    """
+    Saves images and masks in the directory.
+    """
+    
     os.makedirs(directory, exist_ok=True)
     output_path = os.path.join(directory, file_name)
     image.save(output_path)
     return
 
 
+def chunk_loader(lst, n):
+    """
+    Chunk loader for COCO index list.
+    """
+    
+    avg = len(lst) / float(n)
+    chunks = []
+    last = 0
+    
+    while last < len(lst):
+        chunks.append(lst[int(last):int(last + avg)])
+        last += avg
+    return chunks
+
+
 def inpaint_pipeline():
-    dataset = COCO("data/raw/annotations/instances_val2017.json")
+    """
+    Inpainting pipeline that automatically alternates between different 
+    inpainting methods and mask types to generate the dataset.
+    """
+    
+    dataset = COCO("./data/raw/annotations/instances_val2017.json")
     index = dataset.getImgIds()
     prompts = load_prompts()
     
     inpaint = Inpaint("./models/inpaint")
-    mask_methods = {
-        "segmentation": Mask.segmentation_mask,
-        "bbox": Mask.bbox_mask,
-        "random_box": lambda dataset, id: Mask.random_box_mask
-    }
     inpaint_models = {
         "Stable_Diffusion": inpaint.Stable_Diffusion,
         "Kandinsky": inpaint.Kandinsky
+    }
+        
+    mask_methods = {
+        "segmentation": Mask.segmentation_mask,
+        "bbox": Mask.bbox_mask,
+        "random_box": lambda dataset, id: Mask.random_box_mask()
     }
     
     combinations = []
@@ -77,11 +104,13 @@ def inpaint_pipeline():
                 combinations.append((mask_name, model_name, "random"))
                 combinations.append((mask_name, model_name, "realistic"))
 
-    batch = 1000
+    batch = 555
+    random.shuffle(index)
+    chunks = chunk_loader(index, len(combinations))
     progress = {f"{m}_{n}_{p}": 0 for (m, n, p) in combinations}
-    for image, id, file_name in image_loader(dataset, index):
+    for (mask_type, model_name, prompt_type), ids in zip(combinations, chunks):
         
-        for mask_type, model_name, prompt_type in combinations:
+        for image, id, file_name in image_loader(dataset, ids):
             key = f"{mask_type}_{model_name}_{prompt_type}"
             
             if progress[key] >= batch:
@@ -93,20 +122,23 @@ def inpaint_pipeline():
 
                 prompt = (random.choice(prompts) if prompt_type == "random" 
                             else "Fill the missing region realistically")
-                
                 inpaint = inpaint_models[model_name]
                 inpainted, gt_mask = inpaint(prompt, image, mask)
             
                 save(inpainted, f"./data/processed/train/{key}", file_name)
                 save(gt_mask, f"./data/processed/masks/{key}", file_name)
-                
-                print(f"LOG: file {file_name} with {key} has this PROMPT: {prompt}")
+
+                now = datetime.now().strftime("%H:%M:%S")
+                with open("./data/processed/inpaint_log.csv", "a", newline="", encoding="utf-8") as csv_file:
+                    writer = csv.writer(csv_file)
+                    writer.writerow([now, file_name, model_name, mask_type, prompt])
+
                 progress[key] += 1
                 if all(images >= batch for images in progress.values()):
                     exit()
 
             except Exception as e:
-                print(e)
+                print("\n\n --- ", e, " --- \n\n")
 
 if __name__ == "__main__":
     inpaint_pipeline()
