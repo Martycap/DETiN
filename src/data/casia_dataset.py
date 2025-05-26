@@ -5,9 +5,20 @@ from torchvision import transforms
 from utils.frequency import extract_frequency
 from utils.noise import extract_noise
 import matplotlib.pyplot as plt
-import cv2
+
 
 class CASIATransformerDataset(Dataset):
+    """
+    Custom PyTorch dataset for the CASIA dataset.
+
+    Each item consists of:
+    - A tampered image
+    - Its corresponding binary manipulation mask
+    - Additional feature maps: noise and frequency
+
+    The tampered image is preprocessed (resized and normalized), and
+    concatenated with its noise and frequency maps to form a 9-channel tensor.
+    """
     def __init__(self, triplets, transform=None):
         self.triplets = triplets
         self.transform = transform if transform else transforms.Compose([
@@ -20,25 +31,27 @@ class CASIATransformerDataset(Dataset):
         return len(self.triplets)
     
     def __getitem__(self, idx):
+        """
+        Returns:
+            x (Tensor): A 9-channel tensor containing RGB, noise, and frequency maps.
+            mask (Tensor): A 1-channel ground truth binary mask of shape [1, 224, 224].
+        """
         original_path, tampered_path, mask_path = self.triplets[idx]
         
-        # Carica immagine modificata
         image = cv2.imread(tampered_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
-        # Carica maschera (bianco/nero)
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
         mask = cv2.resize(mask, (224,224))
-        mask = torch.tensor(mask / 255., dtype=torch.float32)  # [H, W], valori 0 o 1
+        mask = torch.tensor(mask / 255., dtype=torch.float32)  
         
-        # Applica trasformazioni immagine
-        image = self.transform(image)  # [3,H,W]
+        image = self.transform(image)  
         
-        # Estrai rumore e frequenza
+        
         noise = extract_noise(image)       
         freq = extract_frequency(image)    
         
-        # Concatenazione canali: immagine + rumore + frequenza -> [9,H,W]
+        
         x = torch.cat([image, noise, freq], dim=0)
         
         return x, mask.unsqueeze(0)  
@@ -46,9 +59,14 @@ class CASIATransformerDataset(Dataset):
     
     
 def plot_image_noise_freq(image, noise, freq):
-    # image, noise, freq: [3, H, W], tensori torch
+    """
+    Plots the first channel of the original image, noise map, and frequency map.
 
-    # Converti in numpy e prendi solo il primo canale per visualizzare (per semplicità)
+    Args:
+        image (Tensor): Original image tensor of shape [3, H, W]
+        noise (Tensor): Noise map tensor of shape [3, H, W]
+        freq (Tensor): Frequency map tensor of shape [3, H, W]
+    """
     img_np = image[0].cpu().numpy()
     noise_np = noise[0].cpu().numpy()
     freq_np = freq[0].cpu().numpy()
