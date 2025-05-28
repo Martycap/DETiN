@@ -6,18 +6,69 @@ from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
 import torch.nn as nn
 import torch.nn.functional as F
-from src.utils.create_triplets import create_triplets_from_tampered
+from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_score
 import cv2
 import pickle
 from torchvision import transforms
+import numpy as np
+from utils.create_triplets import create_triplets_from_tampered
 
+## Da rimuovere
+def center_crop(image, size=256):
+    """
+    Crops the largest possible centered square from the image,
+    then resizes it to (size, size) for inpaint detection model input.
+    """
+    
+    width, height = image.size
+    min_dim = min(width, height)
+
+    left = (width - min_dim) // 2
+    top = (height - min_dim) // 2
+    right = left + min_dim
+    bottom = top + min_dim
+
+    cropped = image.crop((left, top, right, bottom))
+    resized = cropped.resize((size, size), Image.LANCZOS)
+    return resized
+
+def evaluate_model(model, dataloader, device):
+    model.eval()
+    all_preds = []
+    all_targets = []
+
+    with torch.no_grad():
+        for inputs, targets in dataloader:
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            outputs = model(inputs)
+            preds = (outputs > 0.5).float()
+
+            all_preds.append(preds.cpu().numpy())
+            all_targets.append(targets.cpu().numpy())
+
+
+
+    all_preds = np.concatenate(all_preds, axis=0).flatten().astype(int)
+    all_targets = np.concatenate(all_targets, axis=0).flatten().astype(int)
+
+    precision = precision_score(all_targets, all_preds)
+    recall = recall_score(all_targets, all_preds)
+    f1 = f1_score(all_targets, all_preds)
+    iou = jaccard_score(all_targets, all_preds)
+
+    print(f"\n Valutazione del modello:")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall:    {recall:.4f}")
+    print(f"F1 Score:  {f1:.4f}")
+    print(f"IoU:       {iou:.4f}")
 
 class CASIATransformerDataset(Dataset):
     def __init__(self, triplets, transform=None):
         self.triplets = triplets
         self.transform = transform if transform else transforms.Compose([
             transforms.ToPILImage(),
-            transforms.Resize((224, 224)),  
+            transforms.Resize((256, 256)),  
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
         ])
@@ -27,7 +78,6 @@ class CASIATransformerDataset(Dataset):
     
     def __getitem__(self, idx):
         original_path, tampered_path, mask_path = self.triplets[idx]
-        print(f"Caricamento: {original_path}, {tampered_path}, {mask_path}")
         
         # Caricamento e conversione immagini
         original = cv2.imread(original_path)
@@ -37,16 +87,16 @@ class CASIATransformerDataset(Dataset):
         tampered = cv2.cvtColor(tampered, cv2.COLOR_BGR2RGB)
 
         # Applica le trasformazioni (inclusa normalizzazione) a entrambe
-        original = self.transform(original)  # [3, 224, 224]
-        tampered = self.transform(tampered)  # [3, 224, 224]
+        original = self.transform(original)  
+        tampered = self.transform(tampered)  
 
-        # Concatenazione lungo i canali -> [6, 224, 224]
+        # Concatenazione lungo i canali -> 
         image_pair = torch.cat((original, tampered), dim=0)
 
         # Caricamento e normalizzazione maschera
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-        mask = cv2.resize(mask, (224, 224))
-        mask = torch.tensor(mask / 255., dtype=torch.float32).unsqueeze(0)  # [1, 224, 224]
+        mask = cv2.resize(mask, (256, 256))
+        mask = torch.tensor(mask / 255., dtype=torch.float32).unsqueeze(0)  
 
         return image_pair, mask
 
@@ -80,7 +130,9 @@ class ImagePairDataset(Dataset):
 
     def __getitem__(self, idx):
         orig_path, mod_path = self.pairs[idx]
+        
         orig_img = Image.open(orig_path).convert("RGB")
+        orig_img = center_crop(orig_img)
         mod_img = Image.open(mod_path).convert("RGB")
 
         
@@ -96,7 +148,7 @@ class ImagePairDataset(Dataset):
 
 # Trasformazioni immagine
 transform = T.Compose([
-    T.Resize((224,224)), 
+    T.Resize((256,256)), 
     T.ToTensor(),
     T.Normalize(mean=[0.5]*3, std=[0.5]*3)
 ])
@@ -130,7 +182,7 @@ class SimpleChangeDetector(nn.Module):
         return x
 
 # Funzione di inferenza con visualizzazione
-def infer_and_save_masks(model, dataloader, device, output_dir="output_masks"):
+def infer_and_save_masks(model, dataloader, device, output_dir="./data/processed/CNN_masks"):
     os.makedirs(output_dir, exist_ok=True)
     model.eval()
     with torch.no_grad():
@@ -152,57 +204,79 @@ def infer_and_save_masks(model, dataloader, device, output_dir="output_masks"):
                 pil_mask.save(save_path)
                 print(f"Salvata maschera: {save_path}")
 
-def train_model(model, dataloader, device, epochs=5, lr=1e-3):
+def train_model(model, dataloader, device, epochs=20, lr=1e-3, patience=5, checkpoint_path="models/best_model.pth"):
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.BCELoss()  # dato che l'output è binario 0-1
+    criterion = nn.BCELoss()
+    
+    best_loss = float("inf")
+    epochs_without_improvement = 0
 
     for epoch in range(epochs):
-        print(f"\nInizio epoch {epoch+1}/{epochs}")
+        print(f"\nEpoch {epoch+1}/{epochs}")
         total_loss = 0
+        model.train()
+        
         for inputs, masks in dataloader:
-            inputs = inputs.to(device)
-            masks = masks.to(device)  # shape (B, 1, H, W)
+            inputs, masks = inputs.to(device), masks.to(device)
 
             optimizer.zero_grad()
             outputs = model(inputs)
-
             loss = criterion(outputs, masks)
             loss.backward()
             optimizer.step()
-
             total_loss += loss.item()
 
         avg_loss = total_loss / len(dataloader)
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+        print(f"Loss: {avg_loss:.4f}")
+
+        # Early Stopping e Checkpoint
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            epochs_without_improvement = 0
+            torch.save(model.state_dict(), checkpoint_path)
+            print(f"Checkpoint salvato: {checkpoint_path}")
+        else:
+            epochs_without_improvement += 1
+            print(f"Nessun miglioramento per {epochs_without_improvement} epoch(s)")
+
+        if epochs_without_improvement >= patience:
+            print("Early stopping attivato")
+            break
 
 def main():
     original_dir_for_training = "data/raw/CASIA2/Authentic"
     modified_dirs_for_training = "data/raw/CASIA2/Tampered"
     mask_dir_for_training = "data/raw/CASIA2/Masks"
-    original_dir_for_inference = "data/raw/val_images"
+    original_dir_for_inference = "data/raw/COCO"
     modified_dirs_for_inference = [
-        "data/processed/bbox_Kandinsky_random",
-        "data/processed/bbox_Stable_Diffusion_random",
-        "data/processed/bbox_Stable_Diffusion_realistic",
-        "data/processed/segmentation_Kandinsky_random",
-        "data/processed/segmentation_Stable_Diffusion_random",
-        "data/processed/segmentation_Stable_Diffusion_realistic"
+        "data/processed/DIFF_masks/bbox_Kandinsky_random",
+        "data/processed/DIFF_masks/bbox_Stable_Diffusion_random",
+        "data/processed/DIFF_masks/bbox_Stable_Diffusion_realistic",
+        "data/processed/DIFF_masks/segmentation_Kandinsky_random",
+        "data/processed/DIFF_masks/segmentation_Stable_Diffusion_random",
+        "data/processed/DIFF_masks/segmentation_Stable_Diffusion_realistic"
     ]
 
 
     # Dataset di training e dataloader
-    triplet_file = "triplets.pkl"
+    triplet_file = "data/raw/CASIA2/triplets.pkl"
+    best_model_path = "models/best_model.pth"
 
     if os.path.exists(triplet_file):
         with open(triplet_file, "rb") as f:
             triplets = pickle.load(f)
         print(f"Triplette caricate da {triplet_file}")
+        
+        if len(triplets) == 0:
+            raise ValueError("Il file triplets.pkl è vuoto. Controlla la generazione dei triplet.")
+    
     else:
         triplets = create_triplets_from_tampered(modified_dirs_for_training, mask_dir_for_training, original_dir_for_training)
         with open(triplet_file, "wb") as f:
             pickle.dump(triplets, f)
         print(f"Triplette generate e salvate in {triplet_file}")
+        
     
     
     
@@ -214,16 +288,36 @@ def main():
     inference_loader = DataLoader(dataset_for_inference, batch_size=2, shuffle=False)
     
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device_name = "cpu"
+    if torch.cuda.is_available():
+        device_name = "cuda"
+    elif torch.backends.mps.is_available()  :
+        device_name = "mps"
+    device = torch.device(device=device_name)
     
 
-    model = SimpleChangeDetector().to(device)
+    CNN_masks = SimpleChangeDetector().to(device)
 
-    # Addestramento
-    train_model(model, train_loader, device, epochs=5, lr=1e-3)
+    if os.path.exists(best_model_path):
+        CNN_masks.load_state_dict(torch.load(best_model_path, map_location=device))
+        print(f"Miglior modello caricato da {best_model_path}")
+    else:
+        print("Modello non trovato. Avvio dell'addestramento...")
+        train_model(CNN_masks, train_loader, device, epochs=20, lr=1e-3, patience=5)
+        if os.path.exists(best_model_path):
+            CNN_masks.load_state_dict(torch.load(best_model_path, map_location=device))
+            print("Miglior modello caricato dopo l'addestramento.")
+        else:
+            print("Attenzione: il modello non è stato salvato correttamente.")
+            return
+
+    # Valutazione
+    evaluate_model(CNN_masks, train_loader, device)
 
     # Inferenza
-    infer_and_save_masks(model, inference_loader, device)
+    infer_and_save_masks(CNN_masks, inference_loader, device)
+
+
 
 
     

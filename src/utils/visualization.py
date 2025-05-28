@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import torch
-from src.data.casia_dataset import plot_image_noise_freq
+from data.casia_dataset import plot_image_noise_freq
 
 def set_seed(seed=42):
     """
@@ -20,7 +20,7 @@ def visualize_sample(dataset, index=0):
     """
     Visualize a sample image, its noise, and frequency from the dataset.
     """
-    x, mask = dataset[index]
+    x, mask, file_name = dataset[index]
     image = x[:3, :, :]
     noise = x[3:6, :, :]
     freq = x[6:9, :, :]

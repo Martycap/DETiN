@@ -14,8 +14,8 @@ def inference(model, dataloader, device, save_dir="predicted_masks"):
     f1_scores = []
 
     with torch.no_grad():
-        for i, (x, mask) in enumerate(tqdm.tqdm(dataloader, desc="Inference")):
-            x, mask = x.to(device), mask.to(device)
+        for i, (x, mask, filename) in enumerate(tqdm.tqdm(dataloader, desc="Inference")):
+            x, mask, filenames = x.to(device), mask.to(device), filename
             outputs = model(x)['out']
             preds = torch.sigmoid(outputs)
             preds = (preds > 0.5).float()
@@ -27,7 +27,7 @@ def inference(model, dataloader, device, save_dir="predicted_masks"):
                 iou_scores.append(compute_iou(pred_mask, true_mask))
                 f1_scores.append(compute_f1(pred_mask, true_mask))
 
-                filename = f"pred_mask_{i*preds.shape[0]+b:05d}.png"
+                filename = f"pred_mask_{filenames[b]}.png"
                 mask_img = (pred_mask.cpu().numpy() * 255).astype(np.uint8)
                 cv2.imwrite(os.path.join(save_dir, filename), mask_img)
 

@@ -1,3 +1,4 @@
+import os
 import torch
 from torch.utils.data import Dataset
 import cv2
@@ -53,8 +54,9 @@ class CASIATransformerDataset(Dataset):
         
         
         x = torch.cat([image, noise, freq], dim=0)
+        filename = os.path.splitext(os.path.basename(original_path))[0]
         
-        return x, mask.unsqueeze(0)  
+        return x, mask.unsqueeze(0), filename
     
     
     

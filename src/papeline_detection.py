@@ -4,13 +4,13 @@ import torch
 from pathlib import Path
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from src.utils.create_triplets import create_triplets_from_tampered, show_triplet
-from src.utils.list_acronyms import extract_acronyms
-from src.utils.visualization import set_seed, visualize_sample
-from src.data.casia_dataset import CASIATransformerDataset
-from src.models.model import prepare_model
-from src.models.training import train
-from src.models.inference import inference
+from utils.create_triplets import create_triplets_from_tampered, show_triplet
+from utils.list_acronyms import extract_acronyms
+from utils.visualization import set_seed, visualize_sample
+from data.casia_dataset import CASIATransformerDataset
+from models.model import prepare_model
+from models.training import train
+from models.inference import inference
 
 acronyms_path = Path("data/raw/CASIA2/list_acronyms.json")
 authentic_dir = "data/raw/CASIA2/Authentic"

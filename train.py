@@ -203,7 +203,13 @@ def predict_single_image(model, image_tensor, device, threshold=0.5):
 
 def main():
     #set_seed(42)  # Fisso il seed a 42 per la riproducibilità
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device_name = "cpu"
+    if torch.cuda.is_available():
+        device_name = "cuda"
+    elif torch.backends.mps.is_available()  :
+        device_name = "mps"
+    device = torch.device(device=device_name)
+    
 
     authentic_dir = 'data/raw/CASIA2/Authentic'
     tampered_dir = 'data/raw/CASIA2/Tampered'

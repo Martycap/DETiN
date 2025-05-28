@@ -24,12 +24,12 @@ var/
 *.egg
 
 # Folders
-data/raw/original_images
-data/raw/val_images
+data/raw
+data/processed
 venv/
-data/raw/CASIA2
 predicted_masks
-Checkpoints
+checkpoints
+models/output_masks
 
 # Installer logs
 pip-log.txt
