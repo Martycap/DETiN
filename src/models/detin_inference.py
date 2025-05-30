@@ -7,7 +7,7 @@ import numpy as np
 
 from models.detin_metrics import compute_f1, compute_iou
 
-def inference(model, dataloader, device, save_dir="data/processed/DETIN_masks"):
+def inference(model, dataloader, device, save_dir="eval/DETIN_inference"):
     os.makedirs(save_dir, exist_ok=True)
     model.eval()
     iou_scores = []
@@ -26,8 +26,8 @@ def inference(model, dataloader, device, save_dir="data/processed/DETIN_masks"):
                 
                 iou_scores.append(compute_iou(pred_mask, true_mask))
                 f1_scores.append(compute_f1(pred_mask, true_mask))
-
-                filename = f"pred_mask_{filenames[b]}.png"
+                filename_no_ext = os.path.splitext(filenames[b])[0]
+                filename = f"pred_mask_{filename_no_ext}.png"
                 mask_img = (pred_mask.cpu().numpy() * 255).astype(np.uint8)
                 cv2.imwrite(os.path.join(save_dir, filename), mask_img)
 

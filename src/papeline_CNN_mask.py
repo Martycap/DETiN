@@ -7,7 +7,7 @@ from data.cnn_inference_dataset import ImagePairDataset
 from data.cnn_training_dataset import CASIADatasetCNN
 from models.cnn_mask import ChangeDetector
 from models.cnn_eval import evaluate_model
-from models.cnn_iner import infer_and_save_masks
+from models.cnn_infer import infer_and_save_masks
 from models.cnn_training import train_model
 from features.create_triplets import create_triplets_from_tampered
 

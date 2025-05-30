@@ -1,5 +1,6 @@
 import os
 import json
+import pickle
 import torch
 from pathlib import Path
 import torch.nn as nn
@@ -16,6 +17,7 @@ acronyms_path = Path("data/raw/CASIA2/list_acronyms.json")
 authentic_dir = "data/raw/CASIA2/Authentic"
 tampered_dir = "data/raw/CASIA2/Tampered"
 mask_dir = "data/raw/CASIA2/Masks"
+triplet_file = "data/raw/CASIA2/triplets.pkl"
 
 
 def get_dataloaders(triplets, batch_size=8, splits=(0.7, 0.15, 0.15)):
@@ -62,7 +64,21 @@ def main():
             json.dump(acronyms_list, f)
         print("Acronyms extracted and saved.")
 
-    triplets = create_triplets_from_tampered(tampered_dir, mask_dir, authentic_dir)
+    # Load or generate triplets
+    if os.path.exists(triplet_file):
+        with open(triplet_file, "rb") as f:
+            triplets = pickle.load(f)
+        print(f"Triplets loaded from {triplet_file}")
+        
+        if len(triplets) == 0:
+            raise ValueError("The triplets.pkl file is empty. Check triplet generation.")
+    else:
+        triplets = create_triplets_from_tampered(tampered_dir, mask_dir, authentic_dir)
+        with open(triplet_file, "wb") as f:
+            pickle.dump(triplets, f)
+        print(f"Triplets generated and saved to {triplet_file}")
+
+    print(f"Total triplets found: {len(triplets)}")
 
     if not triplets:
         print("No triplets found.")

@@ -2,7 +2,8 @@ import os
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from features.da_eliminare import center_crop
+from data.make_dataset import center_crop
+
 
 
 class ImagePairDataset(Dataset):
