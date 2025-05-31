@@ -2,8 +2,7 @@ import torch, pickle, json, os, sys
 from pathlib import Path
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from features.create_triplets import create_triplets_from_tampered, show_triplet
-from features.list_acronyms import extract_acronyms
+from features.create_triplets import create_triplets_from_tampered, extract_acronyms, show_triplet
 from features.visualization import set_seed, visualize_sample
 from data.casia_dataset import CASIATransformerDataset
 from models.DETIN.detin_model import prepare_model
