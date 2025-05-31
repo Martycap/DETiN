@@ -1,7 +1,4 @@
-import os
-import json
-import pickle
-import torch
+import torch, pickle, json, os, sys
 from pathlib import Path
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
@@ -9,9 +6,9 @@ from features.create_triplets import create_triplets_from_tampered, show_triplet
 from features.list_acronyms import extract_acronyms
 from features.visualization import set_seed, visualize_sample
 from data.casia_dataset import CASIATransformerDataset
-from models.detin_model import prepare_model
-from models.detin_training import train
-from models.detin_inference import inference
+from models.DETIN.detin_model import prepare_model
+from models.DETIN.detin_training import train
+from models.DETIN.detin_inference import inference
 
 acronyms_path = Path("data/raw/CASIA2/list_acronyms.json")
 authentic_dir = "data/raw/CASIA2/Authentic"
@@ -107,5 +104,5 @@ def main():
         print("Inference completed.")
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()

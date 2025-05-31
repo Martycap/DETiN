@@ -1,11 +1,12 @@
-import os
-import torch
+import torch, cv2, os, sys
 from torch.utils.data import Dataset
-import cv2
 from torchvision import transforms
-from utils.frequency import extract_frequency
-from utils.noise import extract_noise
 import matplotlib.pyplot as plt
+
+sys.path.append(os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..")))
+from features.build_features import extract_frequency
+from features.build_features import extract_noise
 
 
 class CASIATransformerDataset(Dataset):
@@ -58,8 +59,7 @@ class CASIATransformerDataset(Dataset):
         
         return x, mask.unsqueeze(0), filename
     
-    
-    
+
 def plot_image_noise_freq(image, noise, freq):
     """
     Plots the first channel of the original image, noise map, and frequency map.

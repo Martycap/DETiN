@@ -4,32 +4,14 @@ sys.path.append(os.path.abspath(
 from data.inpaint.inpaint_models import Inpaint
 from data.inpaint.mask_generator import Mask
 from data.inpaint.prompt_generator import load_prompts
+from features.build_features import center_crop
 
 from datetime import datetime
 from pycocotools.coco import COCO
 from PIL import Image
 
 
-def center_crop(image, size=256):
-    """
-    Crops the largest possible centered square from the image,
-    then resizes it to (size, size) for inpaint detection model input.
-    """
-    
-    width, height = image.size
-    min_dim = min(width, height)
-
-    left = (width - min_dim) // 2
-    top = (height - min_dim) // 2
-    right = left + min_dim
-    bottom = top + min_dim
-
-    cropped = image.crop((left, top, right, bottom))
-    resized = cropped.resize((size, size), Image.LANCZOS)
-    return resized
-
-
-def image_loader(dataset: COCO, index, folder="./data/raw/val_images"):
+def image_loader(dataset: COCO, index, folder="./data/raw/COCO"):
     """
     Lazy image loader based on the IDs provided by COCO dataset.
     """

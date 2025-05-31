@@ -1,9 +1,5 @@
-import os
-import json
+import os, json, cv2, tqdm
 import matplotlib.pyplot as plt
-import cv2
-import tqdm
-
 
 path_list_acronyms = "data/raw/CASIA2/list_acronyms.json"
 
@@ -34,7 +30,6 @@ def find_file_with_prefix_flexible(directory, prefix):
 def create_triplets_from_tampered(tampered_dir, mask_dir, authentic_dir):
     triplets = []
     
-    # Upload list of acronyms
     with open(path_list_acronyms, "r") as f:
         valid_acronyms = json.load(f)
         
@@ -42,7 +37,6 @@ def create_triplets_from_tampered(tampered_dir, mask_dir, authentic_dir):
     for tampered_file in tqdm.tqdm(os.listdir(tampered_dir), desc="Processing tampered files"):
         base_name = os.path.splitext(tampered_file)[0]
 
-        # Mask with base name + '_gt.png'
         mask_name = base_name + '_gt.png'
         mask_path = os.path.join(mask_dir, mask_name)
         if not os.path.exists(mask_path):
@@ -60,7 +54,6 @@ def create_triplets_from_tampered(tampered_dir, mask_dir, authentic_dir):
         if original_code is None:
             continue
 
-        # Build original prefix: Au_ani_00018 (without extension)
         original_prefix = f"Au_{original_code[:3]}_{original_code[3:]}"
         original_path = find_file_with_prefix_flexible(authentic_dir, original_prefix)
         if original_path is None:
