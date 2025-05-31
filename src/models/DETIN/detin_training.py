@@ -4,7 +4,7 @@ import torch, tqdm, os, json
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
-    for x, mask in tqdm.tqdm(dataloader, desc="Training"):
+    for x, mask, f in tqdm.tqdm(dataloader, desc="Training"):
         x, mask = x.to(device), mask.to(device)
         optimizer.zero_grad()
         output = model(x)['out']
