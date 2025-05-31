@@ -17,8 +17,6 @@ def setup():
     if os.path.exists(requirements_file):
         print(f"Installing dependecies")
         subprocess.check_call([python_bin, '-m', 'pip', 'install', '-r', requirements_file])
-
-    subprocess.check_call([python_bin, '-m', 'pip', 'install', '-r', requirements_file])
     
 if __name__ == "__main__":
     setup()

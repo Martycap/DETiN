@@ -24,7 +24,8 @@ var/
 *.egg
 
 # Folders
-data/raw/val_images
+data/raw/COCO/**
+!data/raw/COCO/README.md
 venv/
 models/inpaint/.locks
 models/inpaint/models--kandinsky-community--kandinsky-2-2-decoder-inpaint
