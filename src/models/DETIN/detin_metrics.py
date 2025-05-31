@@ -1,8 +1,8 @@
 def compute_iou(pred_mask, true_mask):
     pred = pred_mask.byte()
     target = true_mask.byte()
-    intersection = (pred & target).float().sum((1, 2))
-    union = (pred | target).float().sum((1, 2))
+    intersection = (pred & target).float().sum((0, 1))
+    union = (pred | target).float().sum((0, 1))
     iou = (intersection + 1e-6) / (union + 1e-6)
     return iou.mean().item()
 
