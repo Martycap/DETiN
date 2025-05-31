@@ -19,7 +19,7 @@ def validate(model, dataloader, criterion, device):
     model.eval()
     running_loss = 0.0
     with torch.no_grad():
-        for x, mask in tqdm.tqdm(dataloader, desc="Validation"):
+        for x, mask, f in tqdm.tqdm(dataloader, desc="Validation"):
             x, mask = x.to(device), mask.to(device)
             output = model(x)['out']
             loss = criterion(output, mask)

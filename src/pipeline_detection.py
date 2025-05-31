@@ -14,6 +14,7 @@ tampered_dir = "data/raw/CASIA2/Tampered"
 mask_dir = "data/raw/CASIA2/Masks"
 tp_list_path = "data/raw/CASIA2/tp_list.txt"
 pairs_cache_path = "data/raw/CASIA2/pairs.pkl"
+final_model_path = "models/DETIN/final_model.pth"
 
 
 
@@ -120,9 +121,16 @@ def main():
     criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-    print("Starting training...")
-    train(model, train_loader, val_loader, criterion, optimizer, device, num_epochs=10)
-    print("Training completed.")
+    if os.path.exists(final_model_path):
+        model.load_state_dict(torch.load(final_model_path, map_location=device))
+        print(f"Model loaded from {final_model_path}")
+    else:
+        criterion = nn.BCEWithLogitsLoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+        print("Starting training...")
+        train(model, train_loader, val_loader, criterion, optimizer, device, num_epochs=2)
+        print("Training completed.")
 
     print("Starting inference on test set...")
     inference(model, test_loader, device)
