@@ -7,22 +7,10 @@ sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..")))
 from features.build_features import extract_frequency
 from features.build_features import extract_noise
-
-
+   
 class CASIATransformerDataset(Dataset):
-    """
-    Custom PyTorch dataset for the CASIA dataset.
-
-    Each item consists of:
-    - A tampered image
-    - Its corresponding binary manipulation mask
-    - Additional feature maps: noise and frequency
-
-    The tampered image is preprocessed (resized and normalized), and
-    concatenated with its noise and frequency maps to form a 9-channel tensor.
-    """
-    def __init__(self, triplets, transform=None):
-        self.triplets = triplets
+    def __init__(self, pairs, transform=None):
+        self.pairs = pairs
         self.transform = transform if transform else transforms.Compose([
             transforms.ToPILImage(),
             transforms.Resize((224,224)),
@@ -30,15 +18,16 @@ class CASIATransformerDataset(Dataset):
         ])
     
     def __len__(self):
-        return len(self.triplets)
+        return len(self.pairs)
     
     def __getitem__(self, idx):
         """
         Returns:
-            x (Tensor): A 9-channel tensor containing RGB, noise, and frequency maps.
-            mask (Tensor): A 1-channel ground truth binary mask of shape [1, 224, 224].
+            x (Tensor): A 9-channel tensor (RGB + noise + frequency).
+            mask (Tensor): Binary ground truth mask [1, 224, 224].
+            filename (str): Filename of the tampered image (without path or extension).
         """
-        original_path, tampered_path, mask_path = self.triplets[idx]
+        tampered_path, mask_path = self.pairs[idx]
         
         image = cv2.imread(tampered_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -49,16 +38,15 @@ class CASIATransformerDataset(Dataset):
         
         image = self.transform(image)  
         
-        
         noise = extract_noise(image)       
         freq = extract_frequency(image)    
         
-        
         x = torch.cat([image, noise, freq], dim=0)
-        filename = os.path.splitext(os.path.basename(original_path))[0]
+
+        filename = os.path.splitext(os.path.basename(tampered_path))[0]
         
         return x, mask.unsqueeze(0), filename
-    
+
 
 def plot_image_noise_freq(image, noise, freq):
     """

@@ -2,18 +2,19 @@ import torch, pickle, json, os, sys
 from pathlib import Path
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from features.create_triplets import create_triplets_from_tampered, extract_acronyms, show_triplet
+from features.create_triplets import create_pairs_from_tp_list, create_triplets_from_tampered, extract_acronyms, show_triplet
 from features.visualization import set_seed, visualize_sample
 from data.casia_dataset import CASIATransformerDataset
 from models.DETIN.detin_model import prepare_model
 from models.DETIN.detin_training import train
 from models.DETIN.detin_inference import inference
 
-acronyms_path = Path("data/raw/CASIA2/list_acronyms.json")
-authentic_dir = "data/raw/CASIA2/Authentic"
+
 tampered_dir = "data/raw/CASIA2/Tampered"
 mask_dir = "data/raw/CASIA2/Masks"
-triplet_file = "data/raw/CASIA2/triplets.pkl"
+tp_list_path = "data/raw/CASIA2/tp_list.txt"
+pairs_cache_path = "data/raw/CASIA2/pairs.pkl"
+
 
 
 def get_dataloaders(triplets, batch_size=8, splits=(0.7, 0.15, 0.15)):
@@ -50,43 +51,21 @@ def main():
     set_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    if acronyms_path.exists():
-        print("Acronyms have already been generated.")
-    else:
-        input_filename = "data/raw/CASIA2/au_list.txt"
-        output_filename = "data/raw/CASIA2/list_acronyms.json"
-        acronyms_list = extract_acronyms(input_filename)
-        with open(output_filename, 'w') as f:
-            json.dump(acronyms_list, f)
-        print("Acronyms extracted and saved.")
+    
+    tp_list_path = "data/raw/CASIA2/tp_list.txt"
+    
+    pairs = create_pairs_from_tp_list(tp_list_path,tampered_dir, mask_dir)
 
-    # Load or generate triplets
-    if os.path.exists(triplet_file):
-        with open(triplet_file, "rb") as f:
-            triplets = pickle.load(f)
-        print(f"Triplets loaded from {triplet_file}")
-        
-        if len(triplets) == 0:
-            raise ValueError("The triplets.pkl file is empty. Check triplet generation.")
-    else:
-        triplets = create_triplets_from_tampered(tampered_dir, mask_dir, authentic_dir)
-        with open(triplet_file, "wb") as f:
-            pickle.dump(triplets, f)
-        print(f"Triplets generated and saved to {triplet_file}")
+    print(f"Trovate {len(pairs)} coppie valide.")
+    if pairs:
+        tampered_path, mask_path = pairs[0]
+        print("Tampered:", tampered_path)
+        print("Mask:", mask_path)
 
-    print(f"Total triplets found: {len(triplets)}")
-
-    if not triplets:
-        print("No triplets found.")
-        return
-    else:
-        print(f"Total triplets found: {len(triplets)}")
-        show_triplet(*triplets[0])
-
-        dataset = CASIATransformerDataset(triplets)
+        dataset = CASIATransformerDataset(pairs)
         visualize_sample(dataset, index=0)
 
-        train_loader, val_loader, test_loader = get_dataloaders(triplets, batch_size=8)
+        train_loader, val_loader, test_loader = get_dataloaders(pairs, batch_size=8)
 
         model = prepare_model(input_channels=9, num_classes=1, pretrained=False)
         model.to(device)
@@ -103,5 +82,51 @@ def main():
         print("Inference completed.")
 
 
-# if __name__ == '__main__':
-#     main()
+
+def main():
+    set_seed(42)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # === STEP 1: Carica coppie da cache, se esistono ===
+    if os.path.exists(pairs_cache_path):
+        with open(pairs_cache_path, "rb") as f:
+            pairs = pickle.load(f)
+        print(f"Coppie caricate da cache ({len(pairs)} trovate)")
+    else:
+        # === STEP 2: Altrimenti, crea e salva ===
+        pairs = create_pairs_from_tp_list(tp_list_path, tampered_dir, mask_dir)
+        os.makedirs(os.path.dirname(pairs_cache_path), exist_ok=True)
+        with open(pairs_cache_path, "wb") as f:
+            pickle.dump(pairs, f)
+        print(f"Salvate {len(pairs)} coppie valide in {pairs_cache_path}")
+
+    if not pairs:
+        print("Nessuna coppia valida trovata. Uscita.")
+        return
+
+    # Debug: mostra prima coppia
+    tampered_path, mask_path = pairs[0]
+    print("Tampered:", tampered_path)
+    print("Mask:", mask_path)
+
+    dataset = CASIATransformerDataset(pairs)
+    visualize_sample(dataset, index=0)
+
+    train_loader, val_loader, test_loader = get_dataloaders(pairs, batch_size=8)
+
+    model = prepare_model(input_channels=9, num_classes=1, pretrained=False)
+    model.to(device)
+
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+    print("Starting training...")
+    train(model, train_loader, val_loader, criterion, optimizer, device, num_epochs=10)
+    print("Training completed.")
+
+    print("Starting inference on test set...")
+    inference(model, test_loader, device)
+    print("Inference completed.")
+
+if __name__ == '__main__':
+    main()

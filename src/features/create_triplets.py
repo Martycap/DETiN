@@ -2,6 +2,7 @@ import os, json, cv2, tqdm
 import matplotlib.pyplot as plt
 
 path_list_acronyms = "data/raw/CASIA2/list_acronyms.json"
+path_tp_name = "tp_list.txt"
 
 def find_file_with_prefix(directory, prefix):
     """
@@ -105,6 +106,44 @@ def extract_acronyms(filename):
             if len(parts) >= 3:
                 acronyms.add(parts[1])
     return list(acronyms)
+
+
+
+
+def create_pairs_from_tp_list(tp_list_path, tampered_dir, mask_dir):
+    """
+    Crea una lista di tuple (tampered_image_path, mask_path) leggendo da tp_list.txt.
+    Restituisce i path assoluti solo se entrambi i file esistono.
+
+    Args:
+        tp_list_path (str): path al file tp_list.txt
+        tampered_dir (str): cartella contenente le immagini tampered
+        mask_dir (str): cartella contenente le maschere
+
+    Returns:
+        List[Tuple[str, str]]: coppie (tampered_path, mask_path), entrambi assoluti
+    """
+    pairs = []
+
+    with open(tp_list_path, 'r') as f:
+        tampered_files = [line.strip() for line in f if line.strip()]
+
+    for tampered_filename in tqdm.tqdm(tampered_files, desc="Creating tampered-mask pairs"):
+        tampered_path = os.path.join(tampered_dir, tampered_filename)
+        mask_filename = os.path.splitext(tampered_filename)[0] + '_gt.png'
+        mask_path = os.path.join(mask_dir, mask_filename)
+
+        if not os.path.exists(tampered_path):
+            tqdm.tqdm.write(f"Immagine non trovata: {tampered_path}")
+            continue
+
+        if not os.path.exists(mask_path):
+            tqdm.tqdm.write(f"Maschera non trovata: {mask_path}")
+            continue
+
+        pairs.append((os.path.abspath(tampered_path), os.path.abspath(mask_path)))
+
+    return pairs
 
 
 if __name__ == "__main__":
