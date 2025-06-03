@@ -27,7 +27,7 @@ def validate(model, dataloader, criterion, device):
     avg_loss = running_loss / len(dataloader)
     return avg_loss
 
-def train(model, train_loader, val_loader, criterion, optimizer, device, num_epochs=10, checkpoint_dir="models/DETIN", patience=3):
+def train(model, train_loader, val_loader, criterion, optimizer, device, num_epochs=100, checkpoint_dir="models/DETIN", patience=5):
     os.makedirs(checkpoint_dir, exist_ok=True)
     best_val_loss = float('inf')
     epochs_no_improve = 0
