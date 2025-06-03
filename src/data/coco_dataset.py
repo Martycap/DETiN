@@ -2,52 +2,67 @@ import torch, cv2, os, sys
 from torch.utils.data import Dataset
 from torchvision import transforms
 import matplotlib.pyplot as plt
+import random
 
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..")))
 from features.build_features import extract_frequency
 from features.build_features import extract_noise
-   
-class CASIATransformerDataset(Dataset):
-    def __init__(self, pairs, transform=None):
-        self.pairs = pairs
+
+
+class COCOTransformerDataset(Dataset):
+    """
+    Custom PyTorch dataset for the CASIA dataset.
+
+    Each item consists of:
+    - A tampered image
+    - Its corresponding binary manipulation mask
+    - Additional feature maps: noise and frequency
+
+    The tampered image is preprocessed (resized and normalized), and
+    concatenated with its noise and frequency maps to form a 9-channel tensor.
+    """
+    def __init__(self, triplets, transform=None):
+        random.shuffle(triplets)
+        self.triplets = triplets
         self.transform = transform if transform else transforms.Compose([
             transforms.ToPILImage(),
-            transforms.Resize((224,224)),
             transforms.ToTensor(),
         ])
+        self.resize = transforms.Resize((224,224))
     
     def __len__(self):
-        return len(self.pairs)
+        return len(self.triplets)
     
     def __getitem__(self, idx):
         """
         Returns:
-            x (Tensor): A 9-channel tensor (RGB + noise + frequency).
-            mask (Tensor): Binary ground truth mask [1, 224, 224].
-            filename (str): Filename of the tampered image (without path or extension).
+            x (Tensor): A 9-channel tensor containing RGB, noise, and frequency maps.
+            mask (Tensor): A 1-channel ground truth binary mask of shape [1, 224, 224].
         """
-        tampered_path, mask_path = self.pairs[idx]
+        original_path, tampered_path, mask_path = self.triplets[idx]
         
         image = cv2.imread(tampered_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
         mask = cv2.resize(mask, (224,224))
-        mask = torch.tensor((mask > 127).astype(float), dtype=torch.float32)
-  
-        
-        noise = extract_noise(image)
-        freq = extract_frequency(image)
+        mask = torch.tensor(mask / 255., dtype=torch.float32)  
 
-        image = self.transform(image)    
+        image = self.transform(image)
+        
+        noise = extract_noise(image)       
+        freq = extract_frequency(image)
+        
+        image = self.resize(image)
+        noise = self.resize(noise)
+        freq = self.resize(freq)
         
         x = torch.cat([image, noise, freq], dim=0)
-
-        filename = os.path.splitext(os.path.basename(tampered_path))[0]
+        filename = os.path.splitext(os.path.basename(original_path))[0]
         
         return x, mask.unsqueeze(0), filename
-
+    
 
 def plot_image_noise_freq(image, noise, freq):
     """
@@ -64,15 +79,15 @@ def plot_image_noise_freq(image, noise, freq):
 
     fig, axs = plt.subplots(1, 3, figsize=(15,5))
     axs[0].imshow(img_np, cmap='gray')
-    axs[0].set_title('Image (channel 0)')
+    axs[0].set_title('Immagine (canale 0)')
     axs[0].axis('off')
 
     axs[1].imshow(noise_np, cmap='gray')
-    axs[1].set_title('Noise residual (channel 0)')
+    axs[1].set_title('Rumore (canale 0)')
     axs[1].axis('off')
 
     axs[2].imshow(freq_np, cmap='gray')
-    axs[2].set_title('Frequency map (channel 0)')
+    axs[2].set_title('Frequenza (canale 0)')
     axs[2].axis('off')
 
     plt.show()
