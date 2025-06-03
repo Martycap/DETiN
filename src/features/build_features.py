@@ -1,8 +1,9 @@
+import numpy as np
 import torch
 from PIL import Image
 import torch.nn.functional as nnf
 
-def extract_frequency(img_tensor):
+def extract_frequency(image_tensor):
     """
     Computes the frequency domain representation of an input RGB image tensor.
 
@@ -10,9 +11,20 @@ def extract_frequency(img_tensor):
     shifts the zero-frequency component to the center, computes the logarithmic
     magnitude spectrum, and normalizes it to the [0, 1] range.
     """
+    if isinstance(image_tensor, np.ndarray):
+        # da HWC [0,255] → CHW [0,1]
+        image_tensor = torch.from_numpy(image_tensor).permute(2, 0, 1).float() / 255.0
+        image_tensor = nnf.interpolate(image_tensor.unsqueeze(0), size=(224,224), mode='bilinear', align_corners=False).squeeze(0)
+
+    if not isinstance(image_tensor, torch.Tensor):
+        raise TypeError("Input must be a NumPy array or a PyTorch tensor")
+
+    if image_tensor.ndim != 3 or image_tensor.shape[0] != 3:
+        raise ValueError("Expected an RGB image with shape (3, H, W)")
+    
     freq_channels = []
-    for c in range(img_tensor.shape[0]):
-        channel = img_tensor[c]
+    for c in range(image_tensor.shape[0]):
+        channel = image_tensor[c]
         fft = torch.fft.fft2(channel)
         fft_shifted = torch.fft.fftshift(fft)
         magnitude = torch.abs(fft_shifted)
@@ -31,7 +43,16 @@ def extract_noise(image_tensor):
     the original input. This residual captures local high-frequency information,
     often associated with tampering artifacts or compression noise.
     """
+    if isinstance(image_tensor, np.ndarray):
+        # da HWC [0,255] → CHW [0,1]
+        image_tensor = torch.from_numpy(image_tensor).permute(2, 0, 1).float() / 255.0
+        image_tensor = nnf.interpolate(image_tensor.unsqueeze(0), size=(224,224), mode='bilinear', align_corners=False).squeeze(0)
 
+    if not isinstance(image_tensor, torch.Tensor):
+        raise TypeError("Input must be a NumPy array or a PyTorch tensor")
+
+    if image_tensor.ndim != 3 or image_tensor.shape[0] != 3:
+        raise ValueError("Expected an RGB image with shape (3, H, W)")
     kernel = torch.ones((3,3), device=image_tensor.device) / 9
     kernel = kernel.expand(3,1,3,3)
     img = image_tensor.unsqueeze(0)  
