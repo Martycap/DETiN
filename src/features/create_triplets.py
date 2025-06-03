@@ -146,6 +146,46 @@ def create_pairs_from_tp_list(tp_list_path, tampered_dir, mask_dir):
     return pairs
 
 
+
+def create_pairs_COCO():
+    """
+    Crea una lista di tuple (tampered_image_path, mask_path) del dataset COCO.
+    Returns:
+        List[Tuple[str, str]]: coppie (tampered_path, mask_path), entrambi assoluti
+    """
+    modified_dirs_for_inference = [
+        "data/processed/train/bbox_Kandinsky_random",
+        "data/processed/train/bbox_Stable_Diffusion_random",
+        "data/processed/train/bbox_Stable_Diffusion_realistic",
+        "data/processed/train/random_box_Kandinsky_random",
+        "data/processed/train/random_box_Stable_Diffusion_random",
+        "data/processed/train/random_box_Stable_Diffusion_realistic",
+        "data/processed/train/segmentation_Kandinsky_random",
+        "data/processed/train/segmentation_Stable_Diffusion_random",
+        "data/processed/train/segmentation_Stable_Diffusion_realistic"
+    ]
+    mask_dir = "data/processed/masks/CNN_masks"
+    pairs = []
+
+    for mod_dir in tqdm.tqdm(modified_dirs_for_inference):
+        if not os.path.isdir(mod_dir):
+            print(f"Directory non trovata: {mod_dir}")
+            continue
+
+        for file in os.listdir(mod_dir):
+            if file.lower().endswith(".jpg"):
+                tampered_path = os.path.abspath(os.path.join(mod_dir, file))
+                base_name = os.path.splitext(file)[0]
+                mask_filename = f"{base_name}.png"
+                mask_path = os.path.abspath(os.path.join(mask_dir, mask_filename))
+
+                if os.path.exists(mask_path):
+                    pairs.append((tampered_path, mask_path))
+                else:
+                    print(f"Maschera non trovata per: {tampered_path}")
+    
+    return pairs
+
 if __name__ == "__main__":
     input_filename = "data/raw/CASIA2/au_list.txt" 
     output_filename = "data/raw/CASIA2/list_acronyms.json"
