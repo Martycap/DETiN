@@ -22,6 +22,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pkl
 
 # Folders
 data/raw/COCO/**
@@ -38,6 +39,10 @@ data/raw/CASIA2/Tampered
 data/raw/CASIA2/Authentic
 data/raw/CASIA2/Masks
 models/CNN_masks
+models/DETIN
+eval
+data/processed/masks
+
 
 # Installer logs
 pip-log.txt
