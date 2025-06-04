@@ -68,24 +68,32 @@ class Mask:
         return mask
 
 
-    def compute_inpainted_mask(original, inpainted):
-        """
-        Generates the inpainted mask after inpainted is applied.
-        """
-        
-        if inpainted.size != original.size:
-            inpainted = inpainted.resize(original.size, Image.LANCZOS)
-        
-        original = np.array(original).astype(np.int16)
-        inpainted = np.array(inpainted).astype(np.int16)
-        differences = np.abs(inpainted - original).sum(axis = 2)
-        
-        kernel = np.ones((3,3), np.uint8)
-        mask = (differences > 40).astype(np.uint8) * 255
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        
-        return Image.fromarray(mask, mode='L')
+def compute_inpainted_mask(original, inpainted):
+    """
+    Generates the inpainted mask after inpainting is applied.
+    """
+    cropped_inpaint = inpainted.resize(original.size, Image.LANCZOS)
     
+    orig_cv = np.array(original)
+    inpaint_cv = np.array(cropped_inpaint)
+    gray_orig = cv2.cvtColor(orig_cv, cv2.COLOR_RGB2GRAY)
+    gray_inpaint = cv2.cvtColor(inpaint_cv, cv2.COLOR_RGB2GRAY)
+    
+    difference = cv2.absdiff(gray_orig, gray_inpaint)
+    _, mask = cv2.threshold(difference, 30, 255, cv2.THRESH_BINARY)
+    
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask = cv2.dilate(mask, kernel, iterations=1)
+    mask = cv2.erode(mask, kernel, iterations=1)
+    
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(mask, contours, -1, color=255, thickness=cv2.FILLED)
+    
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    return Image.fromarray(mask)
 # -------------------------------------------------------------------------
 RATIO = 0.9
 class WhiteMask(Exception):

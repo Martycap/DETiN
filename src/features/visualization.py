@@ -2,7 +2,7 @@ import random, sys, numpy as np, os, torch
 
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..")))
-from data.casia_dataset import plot_image_noise_freq
+from data.DETiN_dataset import plot_image_noise_freq
 
 
 def set_seed(seed=42):
@@ -22,7 +22,7 @@ def visualize_sample(dataset, index=0):
     """
     Visualize a sample image, its noise, and frequency from the dataset.
     """
-    x, mask, file_name = dataset[index]
+    x, _, _ = dataset[index]
     image = x[:3, :, :]
     noise = x[3:6, :, :]
     freq = x[6:9, :, :]

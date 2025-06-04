@@ -12,7 +12,7 @@ def extract_frequency(image_tensor):
     magnitude spectrum, and normalizes it to the [0, 1] range.
     """
     if isinstance(image_tensor, np.ndarray):
-        # da HWC [0,255] → CHW [0,1]
+        # HWC [0,255] → CHW [0,1]
         image_tensor = torch.from_numpy(image_tensor).permute(2, 0, 1).float() / 255.0
         image_tensor = nnf.interpolate(image_tensor.unsqueeze(0), size=(224,224), mode='bilinear', align_corners=False).squeeze(0)
 
@@ -44,7 +44,7 @@ def extract_noise(image_tensor):
     often associated with tampering artifacts or compression noise.
     """
     if isinstance(image_tensor, np.ndarray):
-        # da HWC [0,255] → CHW [0,1]
+        # HWC [0,255] → CHW [0,1]
         image_tensor = torch.from_numpy(image_tensor).permute(2, 0, 1).float() / 255.0
         image_tensor = nnf.interpolate(image_tensor.unsqueeze(0), size=(224,224), mode='bilinear', align_corners=False).squeeze(0)
 

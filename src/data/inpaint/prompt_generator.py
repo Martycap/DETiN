@@ -20,23 +20,23 @@ def save_prompts():
     """
     
     prompts = set()
-    dataset = COCO("data/raw/annotations/captions_val2017.json")
+    dataset = COCO("data/util/annotations/captions_val2017.json")
     index = dataset.getImgIds()
     
     for _ in range(5000):
         prompt = generator(dataset, index)
         prompts.add(prompt)
     
-    with open("./data/raw/prompts.json", "w", encoding="utf-8") as file:
+    with open("./data/util/prompts.json", "w", encoding="utf-8") as file:
         json.dump(list(prompts), file, indent=1)
     return
-        
+
 def load_prompts():
     """
     Prompts loader from json file.
     """
     
-    file_path = "./data/raw/prompts.json"
+    file_path = "./data/util/prompts.json"
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)  
     return data
