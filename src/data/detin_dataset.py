@@ -10,9 +10,9 @@ from features.build_features import extract_frequency
 from features.build_features import extract_noise
 
 
-class DETINTransformerDataset(Dataset):
+class DETiNTransformerDataset(Dataset):
     """
-    Custom PyTorch dataset for the CASIA dataset.
+    Custom PyTorch dataset for the DETIN model.
 
     Each item consists of:
     - A tampered image
@@ -77,7 +77,7 @@ def plot_image_noise_freq(image, noise, freq):
     noise_np = noise[0].cpu().numpy()
     freq_np = freq[0].cpu().numpy()
 
-    fig, axs = plt.subplots(1, 3, figsize=(15,5))
+    _, axs = plt.subplots(1, 3, figsize=(15,5))
     axs[0].imshow(img_np, cmap='gray')
     axs[0].set_title('Immagine (canale 0)')
     axs[0].axis('off')

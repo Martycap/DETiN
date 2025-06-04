@@ -58,10 +58,10 @@ def chunk_loader(lst, n):
 def inpaint_pipeline():
     """
     Inpainting pipeline that automatically alternates between different 
-    inpainting methods and mask types to generate the dataset.
+    inpainting methods, mask types and prompts to generate the dataset.
     """
     
-    dataset = COCO("./data/raw/annotations/instances_val2017.json")
+    dataset = COCO("./data/util/annotations/instances_val2017.json")
     index = dataset.getImgIds()
     prompts = load_prompts()
     
@@ -107,11 +107,11 @@ def inpaint_pipeline():
                 inpaint = inpaint_models[model_name]
                 inpainted, gt_mask = inpaint(prompt, image, mask)
             
-                save(inpainted, f"./data/processed/train/{key}", file_name)
-                save(gt_mask, f"./data/processed/masks/{key}", file_name)
+                save(inpainted, f"./data/processed/train", file_name)
+                save(gt_mask, f"./data/processed/masks/DIFF_masks", file_name)
 
                 now = datetime.now().strftime("%H:%M:%S")
-                with open("./data/processed/inpaint_log.csv", "a", newline="", encoding="utf-8") as csv_file:
+                with open("./data/util/inpaint_log.csv", "a", newline="", encoding="utf-8") as csv_file:
                     writer = csv.writer(csv_file)
                     writer.writerow([now, file_name, model_name, mask_type, prompt])
 

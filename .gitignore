@@ -33,7 +33,7 @@ models/inpaint/models--kandinsky-community--kandinsky-2-2-decoder-inpaint
 models/inpaint/models--kandinsky-community--kandinsky-2-2-prior
 models/inpaint/models--stabilityai--stable-diffusion-2-inpainting
 data/processed/masks/CNN_masks
-data/processed/train
+data/processed/inpainted
 data/raw/CASIA2/triplets.pkl
 data/raw/CASIA2/Tampered
 data/raw/CASIA2/Authentic

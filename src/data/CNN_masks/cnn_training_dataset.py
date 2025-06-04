@@ -2,7 +2,7 @@ import torch, cv2
 from torchvision import transforms
 from torch.utils.data import Dataset
 
-class CASIADatasetCNN(Dataset):
+class CNNDataset(Dataset):
     def __init__(self, triplets, transform=None):
         self.triplets = triplets
         self.transform = transform if transform else transforms.Compose([

@@ -11,7 +11,7 @@ def find_file_with_prefix(directory, prefix):
     Returns None if nothing is found.
     """
     for filename in os.listdir(directory):
-        name, ext = os.path.splitext(filename)
+        name, _ = os.path.splitext(filename)
         if name == prefix:
             return os.path.join(directory, filename)
     return None
@@ -65,6 +65,19 @@ def create_triplets_from_tampered(tampered_dir, mask_dir, authentic_dir):
 
     return triplets
 
+def extract_acronyms(filename):
+    """
+    Function that analyzes the path names of authentic photos 
+    present in the CASIA2 directory and extracts the discriminating acronyms.
+    """
+    acronyms = set()
+    with open(filename, 'r') as f:
+        for line in f:
+            line = line.strip()
+            parts = line.split('_')
+            if len(parts) >= 3:
+                acronyms.add(parts[1])
+    return list(acronyms)
 
 def show_triplet(original_path, tampered_path, mask_path):
     original = cv2.imread(original_path)
@@ -91,100 +104,6 @@ def show_triplet(original_path, tampered_path, mask_path):
     plt.axis('off')
 
     plt.show()
-
-
-def extract_acronyms(filename):
-    """
-    Function that analyzes the path names of authentic photos 
-    present in the CASIA2 directory and extracts the discriminating acronyms.
-    """
-    acronyms = set()
-    with open(filename, 'r') as f:
-        for line in f:
-            line = line.strip()
-            parts = line.split('_')
-            if len(parts) >= 3:
-                acronyms.add(parts[1])
-    return list(acronyms)
-
-
-
-
-def create_pairs_from_tp_list(tp_list_path, tampered_dir, mask_dir):
-    """
-    Crea una lista di tuple (tampered_image_path, mask_path) leggendo da tp_list.txt.
-    Restituisce i path assoluti solo se entrambi i file esistono.
-
-    Args:
-        tp_list_path (str): path al file tp_list.txt
-        tampered_dir (str): cartella contenente le immagini tampered
-        mask_dir (str): cartella contenente le maschere
-
-    Returns:
-        List[Tuple[str, str]]: coppie (tampered_path, mask_path), entrambi assoluti
-    """
-    pairs = []
-
-    with open(tp_list_path, 'r') as f:
-        tampered_files = [line.strip() for line in f if line.strip()]
-
-    for tampered_filename in tqdm.tqdm(tampered_files, desc="Creating tampered-mask pairs"):
-        tampered_path = os.path.join(tampered_dir, tampered_filename)
-        mask_filename = os.path.splitext(tampered_filename)[0] + '_gt.png'
-        mask_path = os.path.join(mask_dir, mask_filename)
-
-        if not os.path.exists(tampered_path):
-            tqdm.tqdm.write(f"Immagine non trovata: {tampered_path}")
-            continue
-
-        if not os.path.exists(mask_path):
-            tqdm.tqdm.write(f"Maschera non trovata: {mask_path}")
-            continue
-
-        pairs.append((os.path.abspath(tampered_path), os.path.abspath(mask_path)))
-
-    return pairs
-
-
-
-def create_pairs_COCO():
-    """
-    Crea una lista di tuple (tampered_image_path, mask_path) del dataset COCO.
-    Returns:
-        List[Tuple[str, str]]: coppie (tampered_path, mask_path), entrambi assoluti
-    """
-    modified_dirs_for_inference = [
-        "data/processed/train/bbox_Kandinsky_random",
-        "data/processed/train/bbox_Stable_Diffusion_random",
-        "data/processed/train/bbox_Stable_Diffusion_realistic",
-        "data/processed/train/random_box_Kandinsky_random",
-        "data/processed/train/random_box_Stable_Diffusion_random",
-        "data/processed/train/random_box_Stable_Diffusion_realistic",
-        "data/processed/train/segmentation_Kandinsky_random",
-        "data/processed/train/segmentation_Stable_Diffusion_random",
-        "data/processed/train/segmentation_Stable_Diffusion_realistic"
-    ]
-    mask_dir = "data/processed/masks/CNN_masks"
-    pairs = []
-
-    for mod_dir in tqdm.tqdm(modified_dirs_for_inference):
-        if not os.path.isdir(mod_dir):
-            print(f"Directory non trovata: {mod_dir}")
-            continue
-
-        for file in os.listdir(mod_dir):
-            if file.lower().endswith(".jpg"):
-                tampered_path = os.path.abspath(os.path.join(mod_dir, file))
-                base_name = os.path.splitext(file)[0]
-                mask_filename = f"{base_name}.png"
-                mask_path = os.path.abspath(os.path.join(mask_dir, mask_filename))
-
-                if os.path.exists(mask_path):
-                    pairs.append((tampered_path, mask_path))
-                else:
-                    print(f"Maschera non trovata per: {tampered_path}")
-    
-    return pairs
 
 if __name__ == "__main__":
     input_filename = "data/raw/CASIA2/au_list.txt" 
