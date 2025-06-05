@@ -1,9 +1,8 @@
 # DETiN
-==============================
 The increasing realism of generative inpainting techniques has raised serious concerns in digital forensics and media authenticity. In this work, we introduce DETiN (DEtection of Inpainted areas), a novel framework for the pixel-level detection of manipulated regions in images. Our approach leverages a multimodal input representation combining RGB, frequency, and noise residual information to highlight artifacts left by generative models. We construct a custom dataset based on MS-COCO, enriched with synthetic inpainted images generated using two state-of-the-art diffusion models and diverse masking strategies. Additionally, we propose a CNN-based solution to generate reliable ground truth tampering masks. DETiN employs a multi-branch ResNet-50 backbone to independently process each modality, followed by a dedicated fusion and prediction block for final segmentation. Experimental results show that our model significantly outperforms a DeepLabv3 baseline, demonstrating capability in detecting subtle generative manipulations. However, compared to the state-of-the-art methods in the literature, our performance remains limited—primarily due to the relatively small size of the training dataset and the inherent noise present in the ground-truth masks used during validation and testing. Future work will focus on reducing model complexity, enlarging and diversifying the dataset, and improving mask quality to increase both robustness and generalization.
 
 ## Project Organization
-------------
+```
 ├── README.md                                <- README for developers using this project.
 ├── LICENSE                                  <- The license file for this project.
 ├── requirements.txt                         <- The requirements file listing project dependencies.
@@ -66,4 +65,4 @@ The increasing realism of generative inpainting techniques has raised serious co
         │   ├── detin_training.py
         │   └── __init__.py
         └── __init__.py
---------
+```
