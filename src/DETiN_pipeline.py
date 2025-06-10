@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 # === Paths ===
 tampered_dir_coco = "./data/processed/inpainted"
-mask_dir_coco = "./data/processed/masks/DIFF_masks"
+mask_dir_coco = "./data/processed/masks/CNN_masks"
 tampered_dir_casia = "data/raw/CASIA2/Tampered"
 mask_dir_casia = "data/raw/CASIA2/Masks"
 tp_list_path = "data/raw/CASIA2/tp_list.txt"

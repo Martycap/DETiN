@@ -11,6 +11,7 @@ class DETiN(nn.Module):
         fusion_channels = 3 * 2048
         self.fusion = nn.Sequential(
             nn.Conv2d(fusion_channels, 2048, kernel_size=1),
+            nn.ReLU(inplace=True),
             nn.Conv2d(2048, 512, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.Dropout2d(p=0.5)
